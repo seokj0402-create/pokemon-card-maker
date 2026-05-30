@@ -1,0 +1,878 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>포켓몬 카드 메이커 ✦</title>
+  <script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+  <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+  <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+  <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@400;700;900&display=swap" rel="stylesheet">
+  <style>* { margin:0; padding:0; box-sizing:border-box; } body { background:#060610; }</style>
+</head>
+<body>
+  <div id="root"></div>
+  <script type="text/babel">
+    const { useState, useRef, useCallback, useEffect } = React;
+    const GEMINI_KEY = 'YOUR_GEMINI_API_KEY';
+
+    const TYPES = {
+      불꽃:{bg:["#FDE8CC","#FAC98A"],border:"#E8622A",badge:"#C0392B",ec:"#E8622A",weak:"물"},
+      물:{bg:["#CCE8F8","#8EC8F0"],border:"#1A7BC4",badge:"#1A5276",ec:"#1A7BC4",weak:"번개"},
+      풀:{bg:["#CCF0DC","#88DDAA"],border:"#1E8449",badge:"#1E8449",ec:"#27AE60",weak:"불꽃"},
+      번개:{bg:["#FEFCCC","#FDED88"],border:"#C8A000",badge:"#9A7D0A",ec:"#DAA520",weak:"격투"},
+      에스퍼:{bg:["#FCDDE0","#F8A8B8"],border:"#C0392B",badge:"#922B21",ec:"#E91E8C",weak:"악"},
+      격투:{bg:["#F5DCC8","#E8B888"],border:"#8B4513",badge:"#784212",ec:"#9C4C1A",weak:"에스퍼"},
+      얼음:{bg:["#D8F0FA","#A0D8F0"],border:"#4AAED8",badge:"#1A5276",ec:"#4DB8CC",weak:"강철"},
+      드래곤:{bg:["#E8D8F8","#C0A0E0"],border:"#6030A0",badge:"#4A235A",ec:"#5E35B1",weak:"요정"},
+      악:{bg:["#D8CCDC","#B09CC0"],border:"#4A235A",badge:"#2C0548",ec:"#4A235A",weak:"격투"},
+      고스트:{bg:["#DDD8F0","#B8B0E0"],border:"#6030A0",badge:"#4A235A",ec:"#6A1B9A",weak:"악"},
+      노말:{bg:["#E8E8E8","#D0D0D0"],border:"#888888",badge:"#5D6D7E",ec:"#9E9E9E",weak:"격투"},
+      강철:{bg:["#D0DDE8","#A8BED0"],border:"#546E7A",badge:"#2E4053",ec:"#546E7A",weak:"불꽃"},
+      요정:{bg:["#FCE0EC","#F8B0CC"],border:"#C2185B",badge:"#C2185B",ec:"#E91E8C",weak:"강철"},
+    };
+    const TL = Object.keys(TYPES).join(", ");
+
+    const RARITIES = [
+      {id:"common",      name:"커먼",           sym:"●",  col:"#9E9E9E", holo:false, isEX:false, variant:"standard"},
+      {id:"uncommon",    name:"언커먼",         sym:"◆",  col:"#66BB6A", holo:false, isEX:false, variant:"standard"},
+      {id:"rare",        name:"레어",           sym:"★",  col:"#42A5F5", holo:true,  isEX:false, variant:"standard"},
+      {id:"double_rare", name:"더블 레어",      sym:"★★", col:"#AB47BC", holo:true,  isEX:true,  variant:"standard"},
+      {id:"super_rare",  name:"슈퍼 레어",      sym:"◆◆", col:"#EC407A", holo:true,  isEX:false, variant:"fullart"},
+      {id:"art_rare",    name:"아트 레어",      sym:"⭐",  col:"#FFA726", holo:true,  isEX:false, variant:"fullart"},
+      {id:"sar",         name:"스페셜 아트 레어",sym:"⭐⭐",col:"#FF7043", holo:true,  isEX:true,  variant:"fullart"},
+      {id:"ultra_rare",  name:"울트라 레어",    sym:"★★★",col:"#FFD600", holo:true,  isEX:true,  variant:"gold"},
+      {id:"shiny",       name:"샤이니",         sym:"✦",  col:"#80DEEA", holo:true,  isEX:false, variant:"shiny"},
+      {id:"shining_sr",  name:"샤이닝 슈퍼 레어",sym:"✦✦",col:"#80DEEA", holo:true,  isEX:true,  variant:"shiny_full"},
+      {id:"hyper_rare",  name:"하이퍼 레어",    sym:"⭐⭐⭐",col:"#FF4081",holo:true,  isEX:true,  variant:"rainbow"},
+      {id:"triple_rare", name:"트리플 레어",    sym:"★★★",col:"#BDBDBD", holo:true,  isEX:false, variant:"vmax"},
+      {id:"amazing",     name:"어메이징 카드",  sym:"A★",  col:"#69F0AE", holo:true,  isEX:false, variant:"amazing"},
+      {id:"kagayaku",    name:"찬란한",         sym:"✧",  col:"#FFCA28", holo:true,  isEX:false, variant:"kagayaku"},
+    ];
+    const rollRarity = () => RARITIES[Math.floor(Math.random() * RARITIES.length)];
+    const CW=320, CH=448;
+
+    function EDot({color,n=1}){
+      return <span style={{display:"inline-flex",gap:2,verticalAlign:"middle",marginRight:4}}>
+        {Array.from({length:n}).map((_,i)=>(
+          <span key={i} style={{display:"inline-block",width:13,height:13,borderRadius:"50%",
+            background:`radial-gradient(circle at 35% 32%,rgba(255,255,255,0.85),${color})`,
+            border:"1px solid rgba(0,0,0,0.28)",boxShadow:"0 1px 3px rgba(0,0,0,0.35)"}}/>
+        ))}
+      </span>;
+    }
+
+    function useCardHover(){
+      const [h,setH]=useState(false);
+      const [mx,setMx]=useState(0.5);
+      const [my,setMy]=useState(0.5);
+      const [tilt,setTilt]=useState({});
+      const onMove=useCallback((e)=>{
+        const r=e.currentTarget.getBoundingClientRect();
+        const x=(e.clientX-r.left)/r.width, y=(e.clientY-r.top)/r.height;
+        setMx(x);setMy(y);
+        setTilt({transform:`perspective(900px) rotateX(${(0.5-y)*22}deg) rotateY(${(x-0.5)*22}deg) scale(1.055)`});
+      },[]);
+      const onEnter=()=>setH(true);
+      const onLeave=()=>{setH(false);setTilt({});};
+      return {h,mx,my,tilt,onMove,onEnter,onLeave};
+    }
+
+    function Holo({rarity,mx,my,h,children}){
+      if(!rarity.holo) return <>{children}</>;
+      const v=rarity.variant;
+      const isRainbow=v==="rainbow";
+      const intense=isRainbow?1.2:v==="gold"?1.0:v.includes("shiny")||v==="amazing"?0.9:v==="fullart"?0.8:0.65;
+      const angle=h?`${Math.atan2(my-0.5,mx-0.5)*(180/Math.PI)+90}deg`:"105deg";
+      return <>
+        {children}
+        <div style={{position:"absolute",inset:0,borderRadius:"inherit",pointerEvents:"none",zIndex:20,
+          mixBlendMode:isRainbow?"screen":"color-dodge",
+          backgroundImage:`linear-gradient(${angle},transparent 0%,rgba(255,0,120,${intense}) 12%,rgba(255,80,0,${intense}) 22%,rgba(255,230,0,${intense}) 32%,rgba(0,255,100,${intense}) 42%,rgba(0,120,255,${intense}) 52%,rgba(160,0,255,${intense}) 62%,rgba(255,0,120,${intense}) 72%,transparent 85%)`,
+          backgroundSize:h?"100% 100%":"300% 100%",
+          animation:h?"none":"holoSweep 2.5s ease-in-out infinite"}}/>
+        <div style={{position:"absolute",inset:0,borderRadius:"inherit",pointerEvents:"none",zIndex:19,
+          backgroundImage:"repeating-linear-gradient(0deg,transparent,transparent 2px,rgba(255,255,255,0.065) 2px,rgba(255,255,255,0.065) 4px)"}}/>
+        {h&&<div style={{position:"absolute",inset:0,borderRadius:"inherit",pointerEvents:"none",zIndex:22,
+          background:`radial-gradient(ellipse 55% 55% at ${mx*100}% ${my*100}%,rgba(255,255,255,0.38) 0%,transparent 70%)`,
+          mixBlendMode:"screen"}}/>}
+      </>;
+    }
+
+    function CardImage({src,alt,rarity,style={}}){
+      const v=rarity.variant;
+      const shiny=v==="shiny"||v==="shining_full";
+      const gold=v==="gold";
+      const amazing=v==="amazing";
+      const filter=gold?"sepia(0.8) saturate(4) hue-rotate(15deg) brightness(1.2)":
+                    shiny?"hue-rotate(145deg) saturate(2) brightness(1.08)":"none";
+      return (
+        <div style={{position:"relative",...style}}>
+          <img src={src} alt={alt} style={{width:"100%",height:"100%",objectFit:"cover",filter}}/>
+          {gold&&<div style={{position:"absolute",inset:0,background:"rgba(200,140,10,0.38)",mixBlendMode:"multiply"}}/>}
+          {shiny&&<div className="sparkles" style={{position:"absolute",inset:0,mixBlendMode:"screen",
+            backgroundImage:`radial-gradient(circle at 20% 28%,rgba(255,255,255,0.9) 0,transparent 3px),
+              radial-gradient(circle at 72% 18%,rgba(255,255,255,0.9) 0,transparent 2px),
+              radial-gradient(circle at 48% 62%,rgba(255,255,255,0.9) 0,transparent 3px),
+              radial-gradient(circle at 85% 78%,rgba(255,255,255,0.9) 0,transparent 2px),
+              radial-gradient(circle at 12% 80%,rgba(255,255,255,0.9) 0,transparent 2px)`,
+            animation:"sparkleAnim 2s ease-in-out infinite"}}/>}
+          {amazing&&<div style={{position:"absolute",inset:0,
+            background:"conic-gradient(from 0deg at 50% 50%,#ff000099,#ff770099,#ffff0099,#00ff0099,#0000ff99,#8b00ff99,#ff000099)",
+            mask:"radial-gradient(ellipse at center,transparent 28%,rgba(0,0,0,0.6) 55%,black 75%)",
+            WebkitMask:"radial-gradient(ellipse at center,transparent 28%,rgba(0,0,0,0.6) 55%,black 75%)",
+            animation:"rainbowRotate 4s linear infinite",mixBlendMode:"screen"}}/>}
+        </div>
+      );
+    }
+
+    function CardBack(){
+      return <div style={{width:CW,height:CH,borderRadius:18,overflow:"hidden",
+        background:"linear-gradient(155deg,#1a0a3c,#0d1b50,#1a0a3c)",border:"3px solid #2e1a60",
+        boxShadow:"0 16px 48px rgba(0,0,0,0.7)",display:"flex",alignItems:"center",justifyContent:"center",position:"relative"}}>
+        <div style={{position:"absolute",inset:8,border:"1px solid rgba(120,80,200,0.3)",borderRadius:12}}/>
+        <div style={{width:240,height:340,borderRadius:14,
+          background:"radial-gradient(ellipse at 50%,#2d1b6e,#0d1b4b)",border:"1.5px solid rgba(120,80,200,0.4)",
+          display:"flex",alignItems:"center",justifyContent:"center"}}>
+          <svg width="130" height="130" viewBox="0 0 130 130">
+            <circle cx="65" cy="65" r="60" fill="none" stroke="rgba(120,80,200,0.5)" strokeWidth="2.5"/>
+            <line x1="5" y1="65" x2="125" y2="65" stroke="rgba(120,80,200,0.5)" strokeWidth="2.5"/>
+            <path d="M5 65 A60 60 0 0 1 125 65" fill="rgba(45,27,110,0.5)"/>
+            <circle cx="65" cy="65" r="18" fill="#0d1b4b" stroke="rgba(120,80,200,0.5)" strokeWidth="2.5"/>
+            <circle cx="65" cy="65" r="9" fill="#1a0a3c" stroke="rgba(160,120,255,0.4)" strokeWidth="1.5"/>
+          </svg>
+        </div>
+      </div>;
+    }
+
+    function RevealEffect({rarity,onDone}){
+      const [on,setOn]=useState(true);
+      useEffect(()=>{
+        const t=setTimeout(()=>{setOn(false);onDone();},
+          rarity.variant==="rainbow"?2600:rarity.variant==="gold"?2200:rarity.holo?1600:1000);
+        return ()=>clearTimeout(t);
+      },[]);
+      if(!on) return null;
+      const col=rarity.col;
+      const cnt=rarity.variant==="rainbow"?32:rarity.variant==="gold"?24:rarity.holo?16:6;
+      const rainbowColors=["#ff0044","#ff8800","#ffee00","#00ff88","#0088ff","#8800ff"];
+      return (
+        <div style={{position:"fixed",inset:0,zIndex:9999,display:"flex",alignItems:"center",justifyContent:"center",pointerEvents:"none"}}>
+          <div style={{position:"absolute",inset:0,
+            background:rarity.variant==="rainbow"
+              ?`conic-gradient(from 0deg,rgba(255,0,68,0.4),rgba(255,136,0,0.4),rgba(255,238,0,0.4),rgba(0,255,136,0.4),rgba(0,136,255,0.4),rgba(136,0,255,0.4),rgba(255,0,68,0.4))`
+              :`radial-gradient(ellipse at 50%,${col}44 0%,transparent 70%)`,
+            animation:"flashBg 0.6s ease-out forwards"}}/>
+          {Array.from({length:cnt}).map((_,i)=>{
+            const a=(i/cnt)*360, d=140+Math.random()*150, s=5+Math.random()*10, dl=Math.random()*0.4;
+            const pc=rarity.variant==="rainbow"?rainbowColors[i%6]:
+              rarity.variant==="gold"?["#FFD600","#FFFF00","#FFA000","#fff"][i%4]:col;
+            return <div key={i} style={{position:"absolute",width:s,height:s,borderRadius:"50%",background:pc,
+              boxShadow:`0 0 ${s*2}px ${pc}`,
+              transform:`rotate(${a}deg) translateY(-${d}px)`,
+              animation:`particleFly 0.9s ${dl}s ease-out forwards`,opacity:0}}/>;
+          })}
+          <div style={{textAlign:"center",animation:"centerPop 0.4s 0.25s ease-out both",fontFamily:"Impact,sans-serif"}}>
+            {rarity.variant==="rainbow"
+              ?<div style={{fontSize:26,background:"linear-gradient(90deg,#ff0,#0f0,#0ff,#f0f,#ff0)",
+                  WebkitBackgroundClip:"text",WebkitTextFillColor:"transparent",letterSpacing:2,
+                  filter:"drop-shadow(0 0 12px rgba(255,255,255,0.8))"}}>하이퍼 레어!</div>
+              :<div style={{fontSize:rarity.variant==="gold"?28:20,fontWeight:900,color:col,letterSpacing:2,
+                  textShadow:`0 0 20px ${col},0 0 45px ${col}`}}>{rarity.name}</div>}
+            {(rarity.variant==="rainbow"||rarity.variant==="gold")&&
+              <div style={{fontSize:16,color:"rgba(255,255,255,0.85)",marginTop:6,letterSpacing:2}}>✦ 획득! ✦</div>}
+          </div>
+        </div>
+      );
+    }
+
+    function StandardCard({data,imgUrl,rarity,cardRef}){
+      const th=TYPES[data.type]||TYPES["노말"];
+      const {h,mx,my,tilt,onMove,onEnter,onLeave}=useCardHover();
+      const isEX=rarity.isEX;
+      const v=rarity.variant;
+      const isKag=v==="kagayaku";
+      const isAmazing=v==="amazing";
+      const cardBg=isKag?`linear-gradient(165deg,#FEFCE8,#FEF3C7,#FDE68A)`:`linear-gradient(165deg,${th.bg[0]},${th.bg[1]})`;
+      const bw=rarity.id==="super_rare"?6:rarity.id==="double_rare"||isEX?4:3;
+      const bc=isEX||rarity.holo?th.border:rarity.id==="uncommon"?"#AAAAAA":"#C0C0C0";
+      const amazingBorder=isAmazing?"3px solid transparent":undefined;
+      const amazingOutline=isAmazing?`linear-gradient(white,white) padding-box, conic-gradient(from 0deg,#ff4,#0f0,#0ff,#f0f,#f40,#ff4) border-box`:undefined;
+      return (
+        <div ref={cardRef} onMouseMove={onMove} onMouseEnter={onEnter} onMouseLeave={onLeave}
+          style={{width:CW,height:CH,borderRadius:18,overflow:"hidden",position:"relative",
+            background:cardBg,
+            border:isAmazing?amazingBorder:`${bw}px solid ${bc}`,
+            backgroundImage:isAmazing?amazingOutline:undefined,
+            boxShadow:isEX?`0 0 0 1px ${th.border}55,0 0 28px ${th.border}66,0 16px 48px rgba(0,0,0,0.45)`:
+              isAmazing?`0 0 0 3px transparent,0 0 30px rgba(100,255,150,0.5),0 16px 48px rgba(0,0,0,0.45)`:
+              `0 8px 32px rgba(0,0,0,0.28)`,
+            transition:h?"none":"transform 0.5s ease",
+            fontFamily:"'Noto Sans KR',sans-serif",cursor:"pointer",...tilt}}>
+          <Holo rarity={rarity} mx={mx} my={my} h={h}>
+            <div style={{position:"absolute",inset:7,border:`1px solid ${isEX?th.border+"55":isKag?"rgba(200,168,0,0.4)":"rgba(180,180,180,0.6)"}`,borderRadius:13,pointerEvents:"none",zIndex:30}}/>
+            <div style={{padding:"10px 12px 0",display:"flex",justifyContent:"space-between",alignItems:"flex-start",marginBottom:3,position:"relative",zIndex:15}}>
+              <div>
+                <div style={{fontSize:7,fontWeight:700,color:isKag?"#92690A":th.badge,textTransform:"uppercase",letterSpacing:1,opacity:0.85}}>
+                  기본{isEX?" 포켓몬 ex":" 포켓몬"}
+                  {isKag&&<span style={{marginLeft:4,color:"#C8A000"}}>✧</span>}
+                </div>
+                <div style={{fontSize:isEX?22:19,fontWeight:900,color:isKag?"#7A5500":"#111",lineHeight:1.05,fontFamily:"Impact,'Noto Sans KR',sans-serif",letterSpacing:-0.5}}>
+                  {isKag?"찬란한 ":""}{data.name}{isEX?" ex":""}
+                </div>
+              </div>
+              <div style={{textAlign:"right",flexShrink:0}}>
+                <div style={{fontSize:6.5,color:"#555",fontWeight:700}}>HP</div>
+                <div style={{fontSize:30,fontWeight:900,lineHeight:1,fontFamily:"Impact,sans-serif",color:isKag?"#92690A":th.badge}}>{data.hp}</div>
+                <div style={{fontSize:10}}>{data.energyEmoji}</div>
+              </div>
+            </div>
+            <div style={{margin:"0 12px",height:163,borderRadius:8,overflow:"hidden",border:`2px solid ${th.border}88`,boxShadow:"inset 0 2px 8px rgba(0,0,0,0.25)",position:"relative"}}>
+              <CardImage src={imgUrl} alt={data.name} rarity={rarity} style={{width:"100%",height:"100%"}}/>
+              {isAmazing&&<div style={{position:"absolute",inset:0,
+                background:"conic-gradient(from 0deg at 50% 50%,#ff000066,#ff770066,#ffff0066,#00ff0066,#0000ff66,#8b00ff66,#ff000066)",
+                mask:"radial-gradient(ellipse at center,transparent 30%,rgba(0,0,0,0.7) 60%,black 80%)",
+                WebkitMask:"radial-gradient(ellipse at center,transparent 30%,rgba(0,0,0,0.7) 60%,black 80%)",
+                animation:"rainbowRotate 5s linear infinite",mixBlendMode:"screen"}}/>}
+              <div style={{position:"absolute",bottom:0,left:0,right:0,background:"linear-gradient(transparent,rgba(0,0,0,0.62))",padding:"8px 8px 4px",display:"flex",justifyContent:"space-between",alignItems:"flex-end"}}>
+                <span style={{fontSize:7.5,color:"rgba(255,255,255,0.85)",fontWeight:700}}>{data.category}</span>
+                <span style={{fontSize:7.5,color:"rgba(255,255,255,0.7)",fontFamily:"monospace"}}>No.{data.number}</span>
+              </div>
+            </div>
+            <div style={{padding:"0 12px 8px",display:"flex",flexDirection:"column",flex:1,position:"relative",zIndex:15}}>
+              <div style={{margin:"5px 0 4px",background:isKag?"rgba(200,160,0,0.15)":`${th.badge}22`,border:`1px solid ${isKag?"rgba(200,160,0,0.4)":th.badge+"33"}`,borderRadius:7,padding:"5px 8px"}}>
+                <div style={{display:"flex",alignItems:"center",gap:5,marginBottom:2}}>
+                  <span style={{fontSize:7.5,fontWeight:900,color:"#fff",background:isKag?"linear-gradient(135deg,#B8860B,#DAA520)":`linear-gradient(135deg,${th.badge},${th.border})`,padding:"2px 7px",borderRadius:10}}>특성</span>
+                  <span style={{fontSize:10.5,fontWeight:700,color:isKag?"#7A5500":"#111"}}>{data.ability?.name}</span>
+                </div>
+                <div style={{fontSize:8.5,color:isKag?"#7A5500":"#333",lineHeight:1.4}}>{data.ability?.description}</div>
+              </div>
+              {(data.moves||[]).map((mv,i)=>(
+                <div key={i} style={{marginBottom:3,padding:"4px 6px",background:i%2===0?"rgba(0,0,0,0.04)":"rgba(0,0,0,0.07)",borderRadius:6,border:"1px solid rgba(0,0,0,0.06)"}}>
+                  <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:1.5}}>
+                    <div style={{display:"flex",alignItems:"center"}}>
+                      <EDot color={th.ec} n={mv.cost||1}/>
+                      <span style={{fontSize:11,fontWeight:700,color:isKag?"#7A5500":"#111"}}>{mv.name}</span>
+                    </div>
+                    {mv.damage&&<span style={{fontSize:20,fontWeight:900,color:isKag?"#7A5500":"#111",fontFamily:"Impact,sans-serif",lineHeight:1}}>{mv.damage}</span>}
+                  </div>
+                  <div style={{fontSize:8.5,color:"#444",lineHeight:1.4}}>{mv.description}</div>
+                </div>
+              ))}
+              <div style={{fontSize:7.5,color:"#555",fontStyle:"italic",textAlign:"center",margin:"2px 0",lineHeight:1.4,flex:1,display:"flex",alignItems:"center",justifyContent:"center"}}>
+                <span>"{data.flavorText}"</span>
+              </div>
+              <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",borderTop:`1px solid ${th.border}44`,paddingTop:4,marginTop:2}}>
+                <div style={{fontSize:7.5,color:"#333"}}><span style={{color:"#888",marginRight:2}}>약점</span>{data.weakness} ×2</div>
+                <div style={{fontSize:7.5,color:"#333"}}><span style={{color:"#888",marginRight:2}}>저항</span>{data.resistance}</div>
+                <div style={{fontSize:7.5,color:"#333",display:"flex",alignItems:"center",gap:2}}>
+                  <span style={{color:"#888",marginRight:2}}>도망</span>
+                  {Array.from({length:data.retreat||1}).map((_,i)=><span key={i} style={{display:"inline-block",width:8,height:8,borderRadius:"50%",background:"#666"}}/>)}
+                </div>
+              </div>
+              <div style={{display:"flex",justifyContent:"space-between",marginTop:3}}>
+                <span style={{fontSize:7,color:"#888",fontFamily:"monospace"}}>{data.number}/100 · AI</span>
+                <span style={{fontSize:isAmazing?12:rarity.id==="kagayaku"?12:10,fontWeight:700,
+                  color:isAmazing?"transparent":isKag?"#C8A000":"#666",
+                  background:isAmazing?"linear-gradient(90deg,#f00,#ff8800,#ff0,#0f0,#00f,#8b00ff)":undefined,
+                  WebkitBackgroundClip:isAmazing?"text":undefined,
+                  WebkitTextFillColor:isAmazing?"transparent":undefined}}>{rarity.sym}</span>
+              </div>
+            </div>
+          </Holo>
+        </div>
+      );
+    }
+
+    function FullArtCard({data,imgUrl,rarity,cardRef}){
+      const th=TYPES[data.type]||TYPES["노말"];
+      const {h,mx,my,tilt,onMove,onEnter,onLeave}=useCardHover();
+      const isEX=rarity.isEX;
+      const isSuper=rarity.id==="super_rare";
+      const bw=isSuper?7:3;
+      return (
+        <div ref={cardRef} onMouseMove={onMove} onMouseEnter={onEnter} onMouseLeave={onLeave}
+          style={{width:CW,height:CH,borderRadius:18,overflow:"hidden",position:"relative",
+            border:`${bw}px solid ${th.border}`,
+            boxShadow:`0 0 0 ${isSuper?2:1}px ${th.border}88,0 0 40px ${th.border}88,0 20px 60px rgba(0,0,0,0.6)`,
+            transition:h?"none":"transform 0.5s ease",cursor:"pointer",...tilt}}>
+          <Holo rarity={rarity} mx={mx} my={my} h={h}>
+            <img src={imgUrl} alt={data.name} style={{position:"absolute",inset:0,width:"100%",height:"100%",objectFit:"cover",
+              filter:rarity.variant==="shiny_full"?"hue-rotate(145deg) saturate(2) brightness(1.08)":"none"}}/>
+            <div style={{position:"absolute",inset:0,background:`linear-gradient(to bottom,rgba(0,0,0,0.62) 0%,rgba(0,0,0,0.08) 35%,rgba(0,0,0,0.05) 52%,rgba(0,0,0,0.75) 78%,rgba(0,0,0,0.92) 100%)`,zIndex:1}}/>
+            {rarity.variant==="shiny_full"&&<div className="sparkles" style={{position:"absolute",inset:0,zIndex:22,mixBlendMode:"screen",
+              backgroundImage:`radial-gradient(circle at 15% 25%,rgba(255,255,255,0.9) 0,transparent 3px),radial-gradient(circle at 70% 15%,rgba(255,255,255,0.9) 0,transparent 2px),radial-gradient(circle at 45% 65%,rgba(255,255,255,0.9) 0,transparent 3px),radial-gradient(circle at 88% 80%,rgba(255,255,255,0.9) 0,transparent 2px),radial-gradient(circle at 5% 70%,rgba(255,255,255,0.9) 0,transparent 2px)`,
+              animation:"sparkleAnim 2s ease-in-out infinite"}}/>}
+            <div style={{position:"absolute",inset:7,border:"1px solid rgba(255,255,255,0.22)",borderRadius:13,pointerEvents:"none",zIndex:30}}/>
+            <div style={{position:"absolute",top:14,left:14,right:14,display:"flex",justifyContent:"space-between",alignItems:"flex-start",zIndex:25}}>
+              <div style={{background:"rgba(0,0,0,0.62)",backdropFilter:"blur(12px)",borderRadius:12,padding:"6px 12px",border:`1px solid ${th.border}AA`}}>
+                <div style={{fontSize:7,color:"rgba(255,255,255,0.75)",textTransform:"uppercase",letterSpacing:1.5,marginBottom:2}}>기본{isEX?" 포켓몬 ex":""}</div>
+                <div style={{fontSize:21,fontWeight:900,color:"#fff",fontFamily:"Impact,sans-serif",letterSpacing:-0.3,lineHeight:1}}>
+                  {rarity.variant==="shiny_full"?"✦ ":""}{data.name}{isEX?" ex":""}
+                </div>
+              </div>
+              <div style={{background:"rgba(0,0,0,0.62)",backdropFilter:"blur(12px)",borderRadius:12,padding:"6px 12px",textAlign:"center",border:`1px solid ${th.border}AA`}}>
+                <div style={{fontSize:6.5,color:"rgba(255,255,255,0.75)",fontWeight:700}}>HP</div>
+                <div style={{fontSize:28,fontWeight:900,color:"#fff",fontFamily:"Impact,sans-serif",lineHeight:1}}>{data.hp}</div>
+                <div style={{fontSize:10}}>{data.energyEmoji}</div>
+              </div>
+            </div>
+            <div style={{position:"absolute",bottom:0,left:0,right:0,zIndex:25,padding:"0 12px 10px"}}>
+              {(data.moves||[]).map((mv,i)=>(
+                <div key={i} style={{display:"flex",justifyContent:"space-between",alignItems:"center",background:"rgba(0,0,0,0.62)",backdropFilter:"blur(10px)",borderRadius:9,padding:"5px 10px",marginBottom:4,border:"1px solid rgba(255,255,255,0.14)"}}>
+                  <div>
+                    <div style={{display:"flex",alignItems:"center",marginBottom:1.5}}><EDot color={th.ec} n={mv.cost||1}/><span style={{fontSize:11,fontWeight:700,color:"#fff"}}>{mv.name}</span></div>
+                    <div style={{fontSize:8.5,color:"rgba(255,255,255,0.78)",lineHeight:1.35}}>{mv.description}</div>
+                  </div>
+                  {mv.damage&&<span style={{fontSize:22,fontWeight:900,color:"#fff",fontFamily:"Impact,sans-serif",lineHeight:1,flexShrink:0,marginLeft:8}}>{mv.damage}</span>}
+                </div>
+              ))}
+              <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",background:"rgba(0,0,0,0.62)",backdropFilter:"blur(10px)",borderRadius:8,padding:"4px 10px",border:"1px solid rgba(255,255,255,0.1)"}}>
+                <span style={{fontSize:7.5,color:"rgba(255,255,255,0.7)",fontFamily:"monospace"}}>{data.number}/100</span>
+                <span style={{fontSize:7.5,color:"rgba(255,255,255,0.65)"}}>약점: {data.weakness} ×2</span>
+                <span style={{fontSize:12,color:rarity.col,filter:`drop-shadow(0 0 4px ${rarity.col})`,fontWeight:700}}>{rarity.sym}</span>
+              </div>
+            </div>
+          </Holo>
+        </div>
+      );
+    }
+
+    function ShinyCard({data,imgUrl,rarity,cardRef}){
+      const {h,mx,my,tilt,onMove,onEnter,onLeave}=useCardHover();
+      return (
+        <div ref={cardRef} onMouseMove={onMove} onMouseEnter={onEnter} onMouseLeave={onLeave}
+          style={{width:CW,height:CH,borderRadius:18,overflow:"hidden",position:"relative",
+            background:"linear-gradient(165deg,#0D1B2A,#1B2838,#1E3A5F)",
+            border:"3px solid #80DEEA",
+            boxShadow:"0 0 0 1px #80DEEA88,0 0 30px #80DEEA88,0 16px 48px rgba(0,0,0,0.7)",
+            transition:h?"none":"transform 0.5s ease",cursor:"pointer",
+            fontFamily:"'Noto Sans KR',sans-serif",...tilt}}>
+          <Holo rarity={rarity} mx={mx} my={my} h={h}>
+            <div style={{position:"absolute",inset:0,pointerEvents:"none",zIndex:1,
+              backgroundImage:`radial-gradient(circle at 10% 15%,rgba(255,255,255,0.8) 0,transparent 2px),radial-gradient(circle at 30% 40%,rgba(255,255,255,0.6) 0,transparent 1.5px),radial-gradient(circle at 60% 10%,rgba(255,255,255,0.7) 0,transparent 2px),radial-gradient(circle at 80% 30%,rgba(255,255,255,0.8) 0,transparent 1.5px),radial-gradient(circle at 50% 70%,rgba(255,255,255,0.6) 0,transparent 2px),radial-gradient(circle at 90% 60%,rgba(255,255,255,0.7) 0,transparent 2px),radial-gradient(circle at 20% 80%,rgba(255,255,255,0.5) 0,transparent 1.5px),radial-gradient(circle at 70% 85%,rgba(255,255,255,0.6) 0,transparent 2px),radial-gradient(circle at 40% 20%,rgba(128,222,234,0.9) 0,transparent 2.5px),radial-gradient(circle at 85% 15%,rgba(128,222,234,0.9) 0,transparent 2.5px)`,
+              animation:"sparkleAnim 3s ease-in-out infinite"}}/>
+            <div style={{position:"absolute",inset:8,border:"1px solid rgba(128,222,234,0.4)",borderRadius:12,pointerEvents:"none",zIndex:30}}/>
+            <div style={{padding:"10px 12px 0",position:"relative",zIndex:15}}>
+              <div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-start",marginBottom:3}}>
+                <div>
+                  <div style={{fontSize:7,fontWeight:700,color:"#80DEEA",textTransform:"uppercase",letterSpacing:1}}>✦ 이로치 포켓몬</div>
+                  <div style={{fontSize:19,fontWeight:900,color:"#E0F7FA",lineHeight:1.05,fontFamily:"Impact,sans-serif",letterSpacing:-0.5}}>✦ {data.name}</div>
+                </div>
+                <div style={{textAlign:"right"}}>
+                  <div style={{fontSize:6.5,color:"#80DEEA",fontWeight:700}}>HP</div>
+                  <div style={{fontSize:30,fontWeight:900,lineHeight:1,fontFamily:"Impact,sans-serif",color:"#80DEEA"}}>{data.hp}</div>
+                  <div style={{fontSize:10}}>{data.energyEmoji}</div>
+                </div>
+              </div>
+            </div>
+            <div style={{margin:"0 12px",height:163,borderRadius:8,overflow:"hidden",border:"2px solid #80DEEA88",position:"relative"}}>
+              <CardImage src={imgUrl} alt={data.name} rarity={rarity} style={{width:"100%",height:"100%"}}/>
+              <div style={{position:"absolute",bottom:0,left:0,right:0,background:"linear-gradient(transparent,rgba(0,0,30,0.7))",padding:"8px 8px 4px",display:"flex",justifyContent:"space-between"}}>
+                <span style={{fontSize:7.5,color:"rgba(128,222,234,0.9)",fontWeight:700}}>{data.category}</span>
+                <span style={{fontSize:7.5,color:"rgba(128,222,234,0.7)",fontFamily:"monospace"}}>No.{data.number}</span>
+              </div>
+            </div>
+            <div style={{padding:"0 12px 8px",position:"relative",zIndex:15}}>
+              <div style={{margin:"5px 0 4px",background:"rgba(128,222,234,0.12)",border:"1px solid rgba(128,222,234,0.3)",borderRadius:7,padding:"5px 8px"}}>
+                <div style={{display:"flex",alignItems:"center",gap:5,marginBottom:2}}>
+                  <span style={{fontSize:7.5,fontWeight:900,color:"#0D1B2A",background:"linear-gradient(135deg,#4DD0E1,#80DEEA)",padding:"2px 7px",borderRadius:10}}>특성</span>
+                  <span style={{fontSize:10.5,fontWeight:700,color:"#E0F7FA"}}>{data.ability?.name}</span>
+                </div>
+                <div style={{fontSize:8.5,color:"#B2EBF2",lineHeight:1.4}}>{data.ability?.description}</div>
+              </div>
+              {(data.moves||[]).map((mv,i)=>(
+                <div key={i} style={{marginBottom:3,padding:"4px 6px",background:"rgba(128,222,234,0.08)",border:"1px solid rgba(128,222,234,0.2)",borderRadius:6}}>
+                  <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:1.5}}>
+                    <div style={{display:"flex",alignItems:"center"}}><EDot color="#4DD0E1" n={mv.cost||1}/><span style={{fontSize:11,fontWeight:700,color:"#E0F7FA"}}>{mv.name}</span></div>
+                    {mv.damage&&<span style={{fontSize:20,fontWeight:900,color:"#80DEEA",fontFamily:"Impact,sans-serif",lineHeight:1}}>{mv.damage}</span>}
+                  </div>
+                  <div style={{fontSize:8.5,color:"#B2EBF2",lineHeight:1.4}}>{mv.description}</div>
+                </div>
+              ))}
+              <div style={{fontSize:7.5,color:"#80DEEA",fontStyle:"italic",textAlign:"center",margin:"2px 0",lineHeight:1.4}}>"{data.flavorText}"</div>
+              <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",borderTop:"1px solid rgba(128,222,234,0.3)",paddingTop:4,marginTop:2}}>
+                <div style={{fontSize:7.5,color:"#80DEEA"}}><span style={{opacity:0.6,marginRight:2}}>약점</span>{data.weakness} ×2</div>
+                <div style={{fontSize:7.5,color:"#80DEEA"}}><span style={{opacity:0.6,marginRight:2}}>저항</span>{data.resistance}</div>
+                <span style={{fontSize:12,color:"#80DEEA",fontWeight:700,filter:"drop-shadow(0 0 4px #80DEEA)"}}>✦</span>
+              </div>
+            </div>
+          </Holo>
+        </div>
+      );
+    }
+
+    function GoldCard({data,imgUrl,rarity,cardRef}){
+      const {h,mx,my,tilt,onMove,onEnter,onLeave}=useCardHover();
+      return (
+        <div ref={cardRef} onMouseMove={onMove} onMouseEnter={onEnter} onMouseLeave={onLeave}
+          style={{width:CW,height:CH,borderRadius:18,overflow:"hidden",position:"relative",
+            background:"linear-gradient(145deg,#6B3D00,#C8860A,#F0C840,#E8A800,#9A5E00,#F0C840,#C8860A)",
+            border:"4px solid #DAA520",
+            boxShadow:"0 0 0 1px #FFD60066,0 0 50px #DAA52088,0 0 100px #FFD60044,0 20px 60px rgba(0,0,0,0.7)",
+            transition:h?"none":"transform 0.5s ease",cursor:"pointer",fontFamily:"'Noto Sans KR',sans-serif",...tilt}}>
+          <Holo rarity={rarity} mx={mx} my={my} h={h}>
+            <div style={{position:"absolute",inset:0,pointerEvents:"none",zIndex:20,mixBlendMode:"screen",
+              background:`radial-gradient(ellipse at ${h?mx*100:50}% ${h?my*100:40}%,rgba(255,252,180,0.6) 0%,rgba(255,200,0,0.2) 40%,transparent 70%)`}}/>
+            <div className="sparkles" style={{position:"absolute",inset:0,pointerEvents:"none",zIndex:22,mixBlendMode:"screen",
+              backgroundImage:`radial-gradient(circle at 15% 22%,rgba(255,255,180,0.95) 0,transparent 3px),radial-gradient(circle at 60% 68%,rgba(255,255,180,0.95) 0,transparent 3px),radial-gradient(circle at 85% 18%,rgba(255,255,180,0.95) 0,transparent 3px),radial-gradient(circle at 35% 80%,rgba(255,255,180,0.95) 0,transparent 3px),radial-gradient(circle at 72% 42%,rgba(255,255,180,0.95) 0,transparent 3px),radial-gradient(circle at 8% 60%,rgba(255,255,180,0.95) 0,transparent 3px)`,
+              animation:"sparkleAnim 1.4s ease-in-out infinite"}}/>
+            <div style={{position:"absolute",inset:7,border:"1px solid rgba(255,220,80,0.4)",borderRadius:13,pointerEvents:"none",zIndex:30}}/>
+            <div style={{padding:"10px 12px 0",position:"relative",zIndex:15}}>
+              <div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-start",marginBottom:3}}>
+                <div>
+                  <div style={{fontSize:7.5,fontWeight:900,color:"#4B2800",textTransform:"uppercase",letterSpacing:1.5}}>✦ 포켓몬 ex · 울트라 레어 ✦</div>
+                  <div style={{fontSize:22,fontWeight:900,color:"#2C1000",fontFamily:"Impact,sans-serif",letterSpacing:-0.5,textShadow:"0 1px 2px rgba(255,200,50,0.5)"}}>{data.name} ex</div>
+                </div>
+                <div style={{textAlign:"right"}}>
+                  <div style={{fontSize:6.5,color:"#5C3A00",fontWeight:700}}>HP</div>
+                  <div style={{fontSize:30,fontWeight:900,lineHeight:1,fontFamily:"Impact,sans-serif",color:"#2C1000"}}>{data.hp}</div>
+                </div>
+              </div>
+            </div>
+            <div style={{margin:"0 12px",height:163,borderRadius:8,overflow:"hidden",border:"3px solid #8B6914",boxShadow:"inset 0 0 16px rgba(255,200,50,0.5)",position:"relative"}}>
+              <CardImage src={imgUrl} alt={data.name} rarity={rarity} style={{width:"100%",height:"100%"}}/>
+              <div style={{position:"absolute",inset:0,background:"radial-gradient(ellipse at 50%,transparent 40%,rgba(218,165,32,0.3) 100%)"}}/>
+              <div style={{position:"absolute",bottom:0,left:0,right:0,background:"linear-gradient(transparent,rgba(100,60,0,0.7))",padding:"8px 8px 4px",display:"flex",justifyContent:"space-between"}}>
+                <span style={{fontSize:7.5,color:"rgba(255,220,120,0.9)",fontWeight:700}}>{data.category}</span>
+                <span style={{fontSize:7.5,color:"rgba(255,220,120,0.75)",fontFamily:"monospace"}}>No.{data.number}</span>
+              </div>
+            </div>
+            <div style={{padding:"0 12px 8px",position:"relative",zIndex:15}}>
+              <div style={{margin:"5px 0 4px",background:"rgba(139,105,20,0.2)",border:"1px solid rgba(218,165,32,0.4)",borderRadius:7,padding:"5px 8px"}}>
+                <div style={{display:"flex",alignItems:"center",gap:5,marginBottom:2}}>
+                  <span style={{fontSize:7.5,fontWeight:900,color:"#2C1000",background:"linear-gradient(135deg,#C8860A,#DAA520)",padding:"2px 7px",borderRadius:10}}>특성</span>
+                  <span style={{fontSize:10.5,fontWeight:700,color:"#2C1000"}}>{data.ability?.name}</span>
+                </div>
+                <div style={{fontSize:8.5,color:"#5C3A00",lineHeight:1.4}}>{data.ability?.description}</div>
+              </div>
+              {(data.moves||[]).map((mv,i)=>(
+                <div key={i} style={{marginBottom:3,padding:"4px 6px",background:"rgba(139,105,20,0.15)",border:"1px solid rgba(218,165,32,0.3)",borderRadius:6}}>
+                  <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:1.5}}>
+                    <div style={{display:"flex",alignItems:"center"}}><EDot color="#C8860A" n={mv.cost||2}/><span style={{fontSize:11,fontWeight:700,color:"#2C1000"}}>{mv.name}</span></div>
+                    {mv.damage&&<span style={{fontSize:22,fontWeight:900,color:"#2C1000",fontFamily:"Impact,sans-serif",lineHeight:1}}>{mv.damage}</span>}
+                  </div>
+                  <div style={{fontSize:8.5,color:"#5C3A00",lineHeight:1.4}}>{mv.description}</div>
+                </div>
+              ))}
+              <div style={{fontSize:7.5,color:"#7A5000",fontStyle:"italic",textAlign:"center",margin:"2px 0",lineHeight:1.4}}>"{data.flavorText}"</div>
+              <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",borderTop:"1px solid rgba(139,105,20,0.4)",paddingTop:4,marginTop:2}}>
+                <div style={{fontSize:7.5,color:"#7A5000"}}><span style={{marginRight:6}}>약점: {data.weakness} ×2</span><span>저항: {data.resistance}</span></div>
+                <div style={{fontSize:14,color:"#DAA520",filter:"drop-shadow(0 0 6px #FFD600)",fontWeight:700}}>★★★</div>
+              </div>
+            </div>
+          </Holo>
+        </div>
+      );
+    }
+
+    function RainbowCard({data,imgUrl,rarity,cardRef}){
+      const {h,mx,my,tilt,onMove,onEnter,onLeave}=useCardHover();
+      return (
+        <div ref={cardRef} onMouseMove={onMove} onMouseEnter={onEnter} onMouseLeave={onLeave}
+          style={{width:CW,height:CH,borderRadius:18,overflow:"hidden",position:"relative",
+            background:"linear-gradient(135deg,#FF6B6B,#FFE66D,#4ECDC4,#44A8D5,#A29BFE,#FD79A8,#FF6B6B)",
+            backgroundSize:"400% 400%",animation:"rainbowBg 3s ease infinite",
+            border:"4px solid transparent",
+            backgroundImage:"linear-gradient(135deg,#FF6B6B,#FFE66D,#4ECDC4,#44A8D5,#A29BFE,#FD79A8) border-box",
+            boxShadow:"0 0 40px rgba(255,100,200,0.6),0 0 80px rgba(100,200,255,0.4),0 20px 60px rgba(0,0,0,0.6)",
+            transition:h?"none":"transform 0.5s ease",cursor:"pointer",fontFamily:"'Noto Sans KR',sans-serif",...tilt}}>
+          <Holo rarity={rarity} mx={mx} my={my} h={h}>
+            <div style={{position:"absolute",inset:0,background:"rgba(255,255,255,0.08)"}}/>
+            <div style={{position:"absolute",inset:8,border:"1px solid rgba(255,255,255,0.5)",borderRadius:12,pointerEvents:"none",zIndex:30}}/>
+            <div className="sparkles" style={{position:"absolute",inset:0,pointerEvents:"none",zIndex:22,mixBlendMode:"screen",
+              backgroundImage:`radial-gradient(circle at 12% 20%,rgba(255,255,255,0.95) 0,transparent 3px),radial-gradient(circle at 55% 65%,rgba(255,255,255,0.95) 0,transparent 3px),radial-gradient(circle at 88% 15%,rgba(255,255,255,0.95) 0,transparent 3px),radial-gradient(circle at 30% 80%,rgba(255,255,255,0.95) 0,transparent 3px),radial-gradient(circle at 70% 40%,rgba(255,255,255,0.95) 0,transparent 3px)`,
+              animation:"sparkleAnim 1.4s ease-in-out infinite"}}/>
+            <div style={{padding:"10px 12px 0",position:"relative",zIndex:15}}>
+              <div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-start",marginBottom:3}}>
+                <div>
+                  <div style={{fontSize:7.5,fontWeight:900,textTransform:"uppercase",letterSpacing:1.5,
+                    background:"linear-gradient(90deg,#ff0,#0f0,#0ff,#f0f)",
+                    WebkitBackgroundClip:"text",WebkitTextFillColor:"transparent"}}>✦ 포켓몬 ex · 하이퍼 레어 ✦</div>
+                  <div style={{fontSize:22,fontWeight:900,lineHeight:1.05,fontFamily:"Impact,sans-serif",letterSpacing:-0.5,
+                    background:"linear-gradient(90deg,#FF6B6B,#FFE66D,#4ECDC4,#A29BFE)",
+                    WebkitBackgroundClip:"text",WebkitTextFillColor:"transparent",
+                    filter:"drop-shadow(0 1px 2px rgba(0,0,0,0.4))"}}>{data.name} ex</div>
+                </div>
+                <div style={{textAlign:"right"}}>
+                  <div style={{fontSize:6.5,fontWeight:700,color:"rgba(255,255,255,0.8)"}}>HP</div>
+                  <div style={{fontSize:30,fontWeight:900,lineHeight:1,fontFamily:"Impact,sans-serif",color:"#fff",textShadow:"0 0 10px rgba(255,255,255,0.8)"}}>{data.hp}</div>
+                </div>
+              </div>
+            </div>
+            <div style={{margin:"0 12px",height:163,borderRadius:8,overflow:"hidden",border:"2px solid rgba(255,255,255,0.6)",position:"relative"}}>
+              <CardImage src={imgUrl} alt={data.name} rarity={rarity} style={{width:"100%",height:"100%"}}/>
+              <div style={{position:"absolute",inset:0,background:"conic-gradient(from 0deg at 50% 50%,rgba(255,0,0,0.15),rgba(255,119,0,0.15),rgba(255,238,0,0.15),rgba(0,255,0,0.15),rgba(0,0,255,0.15),rgba(128,0,255,0.15),rgba(255,0,0,0.15))",animation:"rainbowRotate 6s linear infinite",mixBlendMode:"screen"}}/>
+              <div style={{position:"absolute",bottom:0,left:0,right:0,background:"linear-gradient(transparent,rgba(0,0,0,0.62))",padding:"8px 8px 4px",display:"flex",justifyContent:"space-between"}}>
+                <span style={{fontSize:7.5,color:"rgba(255,255,255,0.85)",fontWeight:700}}>{data.category}</span>
+                <span style={{fontSize:7.5,color:"rgba(255,255,255,0.7)",fontFamily:"monospace"}}>No.{data.number}</span>
+              </div>
+            </div>
+            <div style={{padding:"0 12px 8px",position:"relative",zIndex:15}}>
+              <div style={{margin:"5px 0 4px",background:"rgba(255,255,255,0.2)",border:"1px solid rgba(255,255,255,0.4)",borderRadius:7,padding:"5px 8px",backdropFilter:"blur(4px)"}}>
+                <div style={{display:"flex",alignItems:"center",gap:5,marginBottom:2}}>
+                  <span style={{fontSize:7.5,fontWeight:900,color:"#fff",background:"linear-gradient(135deg,#FF6B6B,#A29BFE)",padding:"2px 7px",borderRadius:10}}>특성</span>
+                  <span style={{fontSize:10.5,fontWeight:700,color:"#fff"}}>{data.ability?.name}</span>
+                </div>
+                <div style={{fontSize:8.5,color:"rgba(255,255,255,0.85)",lineHeight:1.4}}>{data.ability?.description}</div>
+              </div>
+              {(data.moves||[]).map((mv,i)=>(
+                <div key={i} style={{marginBottom:3,padding:"4px 6px",background:"rgba(255,255,255,0.18)",border:"1px solid rgba(255,255,255,0.35)",borderRadius:6,backdropFilter:"blur(4px)"}}>
+                  <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:1.5}}>
+                    <div style={{display:"flex",alignItems:"center"}}><EDot color="#fff" n={mv.cost||2}/><span style={{fontSize:11,fontWeight:700,color:"#fff"}}>{mv.name}</span></div>
+                    {mv.damage&&<span style={{fontSize:20,fontWeight:900,color:"#fff",fontFamily:"Impact,sans-serif",lineHeight:1,textShadow:"0 0 8px rgba(255,255,255,0.8)"}}>{mv.damage}</span>}
+                  </div>
+                  <div style={{fontSize:8.5,color:"rgba(255,255,255,0.8)",lineHeight:1.4}}>{mv.description}</div>
+                </div>
+              ))}
+              <div style={{fontSize:7.5,color:"rgba(255,255,255,0.8)",fontStyle:"italic",textAlign:"center",margin:"2px 0",lineHeight:1.4}}>"{data.flavorText}"</div>
+              <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",borderTop:"1px solid rgba(255,255,255,0.3)",paddingTop:4,marginTop:2}}>
+                <div style={{fontSize:7.5,color:"rgba(255,255,255,0.8)"}}><span style={{marginRight:6}}>약점: {data.weakness} ×2</span><span>저항: {data.resistance}</span></div>
+                <div style={{fontSize:14,fontWeight:700,
+                  background:"linear-gradient(90deg,#ff0,#0f0,#0ff,#f0f,#ff0)",
+                  WebkitBackgroundClip:"text",WebkitTextFillColor:"transparent",
+                  filter:"drop-shadow(0 0 6px rgba(255,255,255,0.8))"}}>⭐⭐⭐</div>
+              </div>
+            </div>
+          </Holo>
+        </div>
+      );
+    }
+
+    function VmaxCard({data,imgUrl,rarity,cardRef}){
+      const th=TYPES[data.type]||TYPES["노말"];
+      const {h,mx,my,tilt,onMove,onEnter,onLeave}=useCardHover();
+      return (
+        <div ref={cardRef} onMouseMove={onMove} onMouseEnter={onEnter} onMouseLeave={onLeave}
+          style={{width:CW,height:CH,borderRadius:18,overflow:"hidden",position:"relative",
+            background:`linear-gradient(180deg,#0a0a0a 0%,#1a1a2e 40%,${th.bg[0]} 100%)`,
+            border:`4px solid ${th.border}`,
+            boxShadow:`0 0 0 2px #fff2,0 0 30px ${th.border}88,0 16px 48px rgba(0,0,0,0.7)`,
+            transition:h?"none":"transform 0.5s ease",cursor:"pointer",fontFamily:"'Noto Sans KR',sans-serif",...tilt}}>
+          <Holo rarity={rarity} mx={mx} my={my} h={h}>
+            <div style={{position:"absolute",inset:8,border:`2px solid ${th.border}66`,borderRadius:12,pointerEvents:"none",zIndex:30}}/>
+            <div style={{padding:"12px 14px 0",position:"relative",zIndex:15}}>
+              <div style={{fontSize:8,fontWeight:900,color:th.badge,textTransform:"uppercase",letterSpacing:2,opacity:0.9}}>VMAX · 트리플 레어</div>
+              <div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-start",marginBottom:4}}>
+                <div style={{fontSize:24,fontWeight:900,color:"#fff",lineHeight:1,fontFamily:"Impact,sans-serif",letterSpacing:-0.5,textShadow:`0 0 20px ${th.border}`}}>{data.name}<span style={{fontSize:16,marginLeft:4,color:th.badge}}>VMAX</span></div>
+                <div style={{textAlign:"right"}}>
+                  <div style={{fontSize:6.5,color:"rgba(255,255,255,0.7)",fontWeight:700}}>HP</div>
+                  <div style={{fontSize:32,fontWeight:900,lineHeight:1,fontFamily:"Impact,sans-serif",color:th.border,textShadow:`0 0 15px ${th.border}`}}>{data.hp}</div>
+                </div>
+              </div>
+            </div>
+            <div style={{margin:"0 12px",height:170,borderRadius:8,overflow:"hidden",border:`2px solid ${th.border}`,boxShadow:`0 0 20px ${th.border}44`,position:"relative"}}>
+              <CardImage src={imgUrl} alt={data.name} rarity={rarity} style={{width:"100%",height:"100%"}}/>
+              <div style={{position:"absolute",inset:0,background:`radial-gradient(ellipse at 50% 50%,transparent 30%,rgba(0,0,0,0.4) 100%)`}}/>
+              <div style={{position:"absolute",bottom:0,left:0,right:0,background:`linear-gradient(transparent,rgba(0,0,0,0.7))`,padding:"8px 8px 4px",display:"flex",justifyContent:"space-between"}}>
+                <span style={{fontSize:7.5,color:"rgba(255,255,255,0.85)",fontWeight:700}}>{data.category}</span>
+                <span style={{fontSize:7.5,color:`${th.border}`,fontFamily:"monospace"}}>No.{data.number}</span>
+              </div>
+            </div>
+            <div style={{padding:"0 12px 8px",position:"relative",zIndex:15}}>
+              <div style={{margin:"5px 0 4px",background:`${th.border}18`,border:`1px solid ${th.border}44`,borderRadius:7,padding:"5px 8px"}}>
+                <div style={{display:"flex",alignItems:"center",gap:5,marginBottom:2}}>
+                  <span style={{fontSize:7.5,fontWeight:900,color:"#fff",background:`linear-gradient(135deg,${th.badge},${th.border})`,padding:"2px 7px",borderRadius:10}}>특성</span>
+                  <span style={{fontSize:10.5,fontWeight:700,color:"#fff"}}>{data.ability?.name}</span>
+                </div>
+                <div style={{fontSize:8.5,color:"rgba(255,255,255,0.75)",lineHeight:1.4}}>{data.ability?.description}</div>
+              </div>
+              {(data.moves||[]).map((mv,i)=>(
+                <div key={i} style={{marginBottom:3,padding:"4px 6px",background:`${th.border}10`,border:`1px solid ${th.border}33`,borderRadius:6}}>
+                  <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:1.5}}>
+                    <div style={{display:"flex",alignItems:"center"}}><EDot color={th.ec} n={mv.cost||2}/><span style={{fontSize:11,fontWeight:700,color:"#fff"}}>{mv.name}</span></div>
+                    {mv.damage&&<span style={{fontSize:22,fontWeight:900,color:th.border,fontFamily:"Impact,sans-serif",lineHeight:1,textShadow:`0 0 10px ${th.border}`}}>{mv.damage}</span>}
+                  </div>
+                  <div style={{fontSize:8.5,color:"rgba(255,255,255,0.7)",lineHeight:1.4}}>{mv.description}</div>
+                </div>
+              ))}
+              <div style={{fontSize:7.5,color:"rgba(255,255,255,0.6)",fontStyle:"italic",textAlign:"center",margin:"2px 0",lineHeight:1.4}}>"{data.flavorText}"</div>
+              <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",borderTop:`1px solid ${th.border}44`,paddingTop:4,marginTop:2}}>
+                <div style={{fontSize:7.5,color:"rgba(255,255,255,0.6)"}}><span style={{marginRight:6}}>약점: {data.weakness} ×2</span><span>저항: {data.resistance}</span></div>
+                <div style={{fontSize:10,color:th.border,fontWeight:700,filter:`drop-shadow(0 0 4px ${th.border})`}}>★★★</div>
+              </div>
+            </div>
+          </Holo>
+        </div>
+      );
+    }
+
+    function renderCard(data,imgUrl,rarity,cardRef){
+      const v=rarity.variant;
+      if(v==="rainbow")    return <RainbowCard data={data} imgUrl={imgUrl} rarity={rarity} cardRef={cardRef}/>;
+      if(v==="gold")       return <GoldCard    data={data} imgUrl={imgUrl} rarity={rarity} cardRef={cardRef}/>;
+      if(v==="vmax")       return <VmaxCard    data={data} imgUrl={imgUrl} rarity={rarity} cardRef={cardRef}/>;
+      if(v==="shiny")      return <ShinyCard   data={data} imgUrl={imgUrl} rarity={rarity} cardRef={cardRef}/>;
+      if(v==="shiny_full") return <FullArtCard data={data} imgUrl={imgUrl} rarity={rarity} cardRef={cardRef}/>;
+      if(v==="fullart")    return <FullArtCard data={data} imgUrl={imgUrl} rarity={rarity} cardRef={cardRef}/>;
+      return <StandardCard data={data} imgUrl={imgUrl} rarity={rarity} cardRef={cardRef}/>;
+    }
+
+    const STATUSES=["📸 사진 분석 중...","🔍 피사체 파악 중...","🎨 카드 디자인 중...","✨ 마무리 손질 중..."];
+
+    function App(){
+      const [phase,setPhase]=useState("idle");
+      const [imgUrl,setImgUrl]=useState(null);
+      const [imgB64,setImgB64]=useState(null);
+      const [imgMime,setImgMime]=useState("image/jpeg");
+      const [cardData,setCardData]=useState(null);
+      const [rarity,setRarity]=useState(null);
+      const [showCard,setShowCard]=useState(false);
+      const [showFx,setShowFx]=useState(false);
+      const [drag,setDrag]=useState(false);
+      const [sIdx,setSIdx]=useState(0);
+      const [toast,setToast]=useState("");
+      const [saving,setSaving]=useState(false);
+      const [collection,setCollection]=useState(()=>{
+        try{return JSON.parse(localStorage.getItem("pokemonCardCol")||"[]");}catch{return[];}
+      });
+      const fileRef=useRef(null);
+      const cardRef=useRef(null);
+
+      useEffect(()=>{
+        if(phase!=="generating") return;
+        const t=setInterval(()=>setSIdx(i=>(i+1)%STATUSES.length),900);
+        return ()=>clearInterval(t);
+      },[phase]);
+
+      const loadFile=f=>{
+        if(!f||!f.type.startsWith("image/")) return;
+        setImgMime(f.type);
+        const rd=new FileReader();
+        rd.onload=e=>{setImgUrl(e.target.result);setImgB64(e.target.result.split(",")[1]);setCardData(null);setRarity(null);setShowCard(false);setPhase("idle");};
+        rd.readAsDataURL(f);
+      };
+
+      const generate=async()=>{
+        if(!imgB64||phase==="generating") return;
+        setPhase("generating");setSIdx(0);setShowCard(false);setCardData(null);
+        const rolled=rollRarity();
+        try{
+          const hpMap={common:"60-100",uncommon:"80-120",rare:"100-160",double_rare:"180-260",
+            super_rare:"150-240",art_rare:"100-180",sar:"200-300",ultra_rare:"280-360",
+            shiny:"80-140",shining_sr:"220-300",hyper_rare:"300-400",triple_rare:"280-400",
+            amazing:"120-200",kagayaku:"100-160"};
+          const dmgMap={common:"20-50",uncommon:"30-60",rare:"40-80",double_rare:"80-150",
+            super_rare:"70-130",art_rare:"50-100",sar:"80-170",ultra_rare:"100-220",
+            shiny:"30-70",shining_sr:"90-180",hyper_rare:"100-250",triple_rare:"100-220",
+            amazing:"50-110",kagayaku:"40-90"};
+          const hp=hpMap[rolled.id]||"80-130";
+          const dmg=dmgMap[rolled.id]||"30-80";
+          const isShiny=rolled.variant==="shiny"||rolled.variant==="shiny_full";
+          const isVmax=rolled.variant==="vmax";
+          const isKag=rolled.variant==="kagayaku";
+          const systemPrompt=`포켓몬 카드 디자이너. 사진을 분석해 포켓몬 카드를 한국어로 생성. JSON만 반환 (마크다운/백틱 없이):
+{"name":"한국어 이름 2~4글자","type":"반드시 이 중 하나: ${TL}","hp":${hp},"number":"001~999","category":"○○포켓몬","energyEmoji":"이모지","attack":60,"defense":60,"speed":60,"ability":{"name":"특성이름","description":"30자이내"},"moves":[{"name":"기술명","cost":1,"damage":"${dmg}","description":"25자이내"},{"name":"기술명2","cost":2,"damage":null,"description":"25자이내"}],"flavorText":"40자이내","weakness":"한국어타입","resistance":"한국어타입 -20","retreat":1}
+${isShiny?"이로치(색이 다른 색상의) 포켓몬으로, 이름은 일반 포켓몬과 다르게.":""}
+${isVmax?"VMAX 형태로 매우 강력함. 이름에 VMAX 느낌을 담아.":""}
+${isKag?"이름 앞에 '찬란한'을 붙이지 말 것 (카드가 자동으로 붙임). 깨끗하고 우아한 포켓몬.":""}`;
+          const res=await fetch(
+            `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash-lite:generateContent?key=${GEMINI_KEY}`,
+            {
+              method:"POST",
+              headers:{"Content-Type":"application/json"},
+              body:JSON.stringify({
+                contents:[{parts:[
+                  {inline_data:{mime_type:imgMime,data:imgB64}},
+                  {text:`사진 분석 후 포켓몬 카드 생성. 등급: ${rolled.name}. 사진 속 요소 최대 반영. JSON만.`}
+                ]}],
+                systemInstruction:{parts:[{text:systemPrompt}]},
+                generationConfig:{maxOutputTokens:1200,temperature:0.9}
+              })
+            }
+          );
+          const d=await res.json();
+          if(d.error) throw new Error(d.error.message);
+          const txt=d.candidates?.[0]?.content?.parts?.[0]?.text||"";
+          if(!txt) throw new Error("빈 응답");
+          const jsonMatch=txt.match(/\{[\s\S]*\}/);
+          if(!jsonMatch) throw new Error("JSON 없음");
+          const parsed=JSON.parse(jsonMatch[0]);
+          setCardData(parsed);setRarity(rolled);
+          const newItem={cardData:parsed,rarity:rolled,imgUrl,id:Date.now()};
+          setCollection(prev=>{const c=[newItem,...prev].slice(0,20);try{localStorage.setItem("pokemonCardCol",JSON.stringify(c));}catch{}return c;});
+          setPhase("revealing");setShowFx(true);
+        }catch(err){
+          console.error(err);setPhase("idle");showToast("❌ "+(err.message||"오류 발생"));
+        }
+      };
+
+      const onFxDone=()=>{setShowFx(false);setShowCard(true);setPhase("done");};
+
+      const saveCard=async()=>{
+        if(!cardRef.current||saving) return;
+        setSaving(true);
+        try{
+          const h2c=await new Promise(res=>{
+            if(window.html2canvas){res(window.html2canvas);return;}
+            const s=document.createElement("script");
+            s.src="https://cdn.jsdelivr.net/npm/html2canvas@1.4.1/dist/html2canvas.min.js";
+            s.onload=()=>res(window.html2canvas);s.onerror=()=>res(null);
+            document.head.appendChild(s);
+          });
+          if(!h2c){showToast("저장 실패 - 스크린샷 이용");setSaving(false);return;}
+          const canvas=await h2c(cardRef.current,{scale:2.5,useCORS:true,allowTaint:true,backgroundColor:null,logging:false});
+          const a=document.createElement("a");
+          a.download=`포켓몬카드_${cardData?.name||"card"}_${rarity?.name||""}.png`;
+          a.href=canvas.toDataURL("image/png");a.click();
+          showToast("✅ 저장 완료!");
+        }catch{showToast("저장 실패 - 스크린샷 이용");}
+        setSaving(false);
+      };
+
+      const shareLink=()=>{
+        try{navigator.clipboard.writeText(window.location.href);showToast("🔗 링크 복사됨!");}
+        catch{showToast("링크 복사 실패");}
+      };
+
+      const showToast=msg=>{setToast(msg);setTimeout(()=>setToast(""),2800);};
+
+      return (
+        <div style={{minHeight:"100vh",background:"radial-gradient(ellipse at 50% 0%,#1a0533 0%,#060610 70%)",padding:"2rem 1rem",fontFamily:"'Noto Sans KR','Malgun Gothic',sans-serif"}}>
+          <style>{`
+            @keyframes holoSweep{0%{background-position:0% 50%}50%{background-position:100% 50%}100%{background-position:0% 50%}}
+            @keyframes sparkleAnim{0%,100%{opacity:0.2;transform:scale(1)}50%{opacity:0.95;transform:scale(1.4)}}
+            @keyframes flashBg{0%{opacity:0}25%{opacity:1}100%{opacity:0}}
+            @keyframes particleFly{0%{opacity:1;transform:rotate(var(--a,0deg)) translateY(0)}100%{opacity:0;transform:rotate(var(--a,0deg)) translateY(-200px) scale(0.1)}}
+            @keyframes centerPop{0%{opacity:0;transform:scale(0.4)}65%{opacity:1;transform:scale(1.12)}100%{opacity:1;transform:scale(1)}}
+            @keyframes cardReveal{0%{opacity:0;transform:translateY(28px) scale(0.92)}100%{opacity:1;transform:none}}
+            @keyframes rainbowBg{0%{background-position:0% 50%}50%{background-position:100% 50%}100%{background-position:0% 50%}}
+            @keyframes rainbowRotate{0%{transform:rotate(0deg)}100%{transform:rotate(360deg)}}
+            .card-appear{animation:cardReveal 0.65s cubic-bezier(0.22,1,0.36,1) both}
+            .btn:hover{opacity:0.85;transform:translateY(-1px)}.btn{transition:all 0.18s ease;cursor:pointer}
+          `}</style>
+
+          {toast&&<div style={{position:"fixed",top:20,left:"50%",transform:"translateX(-50%)",
+            background:"rgba(20,20,30,0.97)",color:"#fff",padding:"10px 22px",borderRadius:14,
+            zIndex:99999,fontSize:13,fontWeight:600,boxShadow:"0 8px 28px rgba(0,0,0,0.6)",
+            border:"1px solid rgba(255,255,255,0.1)"}}>{toast}</div>}
+          {showFx&&rarity&&<RevealEffect rarity={rarity} onDone={onFxDone}/>}
+
+          <div style={{maxWidth:780,margin:"0 auto"}}>
+            <div style={{textAlign:"center",marginBottom:"2rem"}}>
+              <div style={{fontSize:10,letterSpacing:6,color:"#F1C40F",textTransform:"uppercase",marginBottom:6,opacity:0.7}}>✦ AI 포켓몬 카드 메이커 ✦</div>
+              <h1 style={{fontSize:44,fontWeight:900,margin:0,lineHeight:1,
+                background:"linear-gradient(135deg,#F1C40F 0%,#E67E22 35%,#C0392B 65%,#8E44AD 100%)",
+                WebkitBackgroundClip:"text",WebkitTextFillColor:"transparent",
+                fontFamily:"Impact,sans-serif",letterSpacing:3}}>포켓몬 카드 메이커</h1>
+              <p style={{color:"#445566",fontSize:13,marginTop:8,lineHeight:1.6}}>
+                사진을 올리면 AI가 분위기·인물·사물을 분석해 나만의 포켓몬 카드로!<br/>
+                <span style={{color:"#DAA520",fontSize:12}}>14가지 등급 (동일 확률) · 무제한 생성 · 마우스 올리면 홀로그램!</span>
+              </p>
+            </div>
+
+            <div style={{display:"flex",gap:"2rem",justifyContent:"center",alignItems:"flex-start",flexWrap:"wrap"}}>
+              {/* 왼쪽 */}
+              <div style={{flex:"0 0 auto",width:300}}>
+                <div onClick={()=>!imgUrl&&fileRef.current?.click()}
+                  onDragOver={e=>{e.preventDefault();setDrag(true)}}
+                  onDragLeave={()=>setDrag(false)}
+                  onDrop={e=>{e.preventDefault();setDrag(false);loadFile(e.dataTransfer.files[0])}}
+                  style={{width:300,minHeight:imgUrl?0:190,borderRadius:14,overflow:"hidden",
+                    border:`2px dashed ${drag?"#F1C40F":"#1e2d3d"}`,cursor:imgUrl?"default":"pointer",
+                    transition:"border-color 0.2s",background:drag?"rgba(241,196,15,0.06)":"rgba(255,255,255,0.02)",
+                    display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center"}}>
+                  {imgUrl?<img src={imgUrl} alt="업로드" style={{width:"100%",display:"block",borderRadius:12}}/>
+                    :<><div style={{fontSize:44,marginBottom:12}}>📸</div>
+                      <div style={{color:"#445566",fontSize:13,textAlign:"center",lineHeight:1.7}}>사진을 드래그하거나<br/>클릭해서 업로드</div></>}
+                </div>
+                <input ref={fileRef} type="file" accept="image/*" onChange={e=>loadFile(e.target.files[0])} style={{display:"none"}}/>
+                <div style={{display:"flex",gap:8,marginTop:12}}>
+                  <button className="btn" onClick={generate} disabled={!imgUrl||phase==="generating"}
+                    style={{flex:1,padding:"12px 0",borderRadius:10,border:"none",
+                      background:imgUrl&&phase!=="generating"?"linear-gradient(135deg,#F1C40F,#E67E22)":"#0d1421",
+                      color:imgUrl&&phase!=="generating"?"#1a0533":"#334455",fontWeight:700,fontSize:14}}>
+                    {phase==="generating"?STATUSES[sIdx]:"⚡ 카드 뽑기"}
+                  </button>
+                  {imgUrl&&phase!=="generating"&&(
+                    <button className="btn" onClick={()=>{setImgUrl(null);setImgB64(null);setCardData(null);setRarity(null);setShowCard(false);setPhase("idle");}}
+                      style={{padding:"12px 14px",borderRadius:10,background:"transparent",border:"1px solid #1e2d3d",color:"#556677",fontSize:14}}>🗑️</button>
+                  )}
+                </div>
+                {phase==="done"&&cardData&&(
+                  <div style={{display:"flex",gap:8,marginTop:10}}>
+                    <button className="btn" onClick={saveCard} disabled={saving}
+                      style={{flex:1,padding:"10px 0",borderRadius:10,border:"1px solid #2a4060",background:"rgba(30,50,80,0.8)",color:saving?"#445566":"#88BBFF",fontWeight:600,fontSize:13}}>
+                      {saving?"저장 중...":"📥 이미지 저장"}
+                    </button>
+                    <button className="btn" onClick={shareLink}
+                      style={{flex:1,padding:"10px 0",borderRadius:10,border:"1px solid #2a4060",background:"rgba(30,50,80,0.8)",color:"#88BBFF",fontWeight:600,fontSize:13}}>
+                      🔗 링크 복사
+                    </button>
+                  </div>
+                )}
+                {/* 등급표 */}
+                <div style={{marginTop:16,padding:"12px",background:"rgba(255,255,255,0.02)",borderRadius:12,border:"1px solid #0d1a2a"}}>
+                  <div style={{fontSize:10,color:"#334455",fontWeight:700,letterSpacing:2,textTransform:"uppercase",marginBottom:8}}>✦ 등급표</div>
+                  {RARITIES.map(r=>(
+                    <div key={r.id} style={{display:"flex",alignItems:"center",justifyContent:"space-between",padding:"2px 0",borderBottom:"1px solid rgba(255,255,255,0.03)"}}>
+                      <span style={{fontSize:9.5,color:"#445566"}}>{r.name}</span>
+                      <span style={{fontSize:10,color:r.col,filter:`drop-shadow(0 0 4px ${r.col}66)`}}>{r.sym}</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              {/* 오른쪽 — 카드 */}
+              <div style={{flex:"0 0 auto",width:CW,display:"flex",flexDirection:"column",alignItems:"center"}}>
+                {!showCard&&phase!=="generating"&&(
+                  <div style={{width:CW,height:CH,borderRadius:18,background:"rgba(10,15,25,0.4)",border:"2px dashed #0d1a2a",display:"flex",alignItems:"center",justifyContent:"center",flexDirection:"column",gap:16}}>
+                    <div style={{fontSize:52}}>🃏</div>
+                    <div style={{color:"#1e2d3d",fontSize:13,textAlign:"center",lineHeight:1.7}}>사진을 업로드하고<br/>카드 뽑기를 눌러보세요</div>
+                  </div>
+                )}
+                {phase==="generating"&&<CardBack/>}
+                {showCard&&cardData&&rarity&&(
+                  <div className="card-appear">
+                    {renderCard(cardData,imgUrl,rarity,cardRef)}
+                  </div>
+                )}
+                {showCard&&cardData&&rarity&&(
+                  <div style={{marginTop:12,textAlign:"center"}}>
+                    <span style={{fontSize:13,color:rarity.col,fontWeight:700,filter:`drop-shadow(0 0 8px ${rarity.col})`}}>{rarity.name} {rarity.sym} 획득!</span>
+                  </div>
+                )}
+              </div>
+            </div>
+
+            {/* 컬렉션 */}
+            {collection.length>0&&(
+              <div style={{marginTop:"3rem"}}>
+                <div style={{textAlign:"center",marginBottom:"1rem",display:"flex",alignItems:"center",justifyContent:"center",gap:12}}>
+                  <span style={{fontSize:11,letterSpacing:3,color:"#334455",textTransform:"uppercase"}}>✦ 내 컬렉션 ({collection.length}/20)</span>
+                  <button onClick={()=>{setCollection([]);localStorage.removeItem("pokemonCardCol");}}
+                    style={{background:"none",border:"1px solid #0d1a2a",borderRadius:6,color:"#223344",fontSize:10,cursor:"pointer",padding:"2px 8px"}}>전체삭제</button>
+                </div>
+                <div style={{display:"flex",flexWrap:"wrap",gap:10,justifyContent:"center"}}>
+                  {collection.map(item=>(
+                    <div key={item.id}
+                      onClick={()=>{setCardData(item.cardData);setRarity(item.rarity);setImgUrl(item.imgUrl);setImgB64(null);setShowCard(true);setPhase("done");}}
+                      style={{cursor:"pointer",textAlign:"center",width:76,transition:"transform 0.18s"}}
+                      onMouseEnter={e=>e.currentTarget.style.transform="scale(1.08)"}
+                      onMouseLeave={e=>e.currentTarget.style.transform="scale(1)"}>
+                      <div style={{width:76,height:108,borderRadius:8,overflow:"hidden",border:`2px solid ${item.rarity.col}88`,position:"relative"}}>
+                        {item.imgUrl&&<img src={item.imgUrl} alt={item.cardData.name} style={{width:"100%",height:"100%",objectFit:"cover"}}/>}
+                        <div style={{position:"absolute",inset:0,background:"linear-gradient(to bottom,transparent 50%,rgba(0,0,0,0.75))"}}/>
+                        <div style={{position:"absolute",bottom:3,left:0,right:0,textAlign:"center",fontSize:9,color:item.rarity.col,fontWeight:700,filter:`drop-shadow(0 0 4px ${item.rarity.col})`}}>{item.rarity.sym}</div>
+                      </div>
+                      <div style={{fontSize:9,color:"#445566",marginTop:3,fontWeight:600,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{item.cardData.name}</div>
+                      <div style={{fontSize:8,color:"#223344"}}>{item.rarity.name}</div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            <div style={{textAlign:"center",marginTop:"2rem",paddingBottom:"2rem",color:"#1e2d3d",fontSize:11,letterSpacing:1}}>
+              ✦ AI 포켓몬 카드 메이커 ·&nbsp;
+              <button className="btn" onClick={shareLink} style={{background:"none",border:"none",color:"#334455",fontSize:11,cursor:"pointer",padding:0,letterSpacing:1}}>🔗 링크 복사</button>
+            </div>
+          </div>
+        </div>
+      );
+    }
+
+    ReactDOM.createRoot(document.getElementById('root')).render(<App />);
+  </script>
+</body>
+</html>
